@@ -1,3 +1,5 @@
+module day1.part1.main;
+
 import std;
 
 auto calculateRequiredFuel(T)(T mass) if (isIntegral!T)
