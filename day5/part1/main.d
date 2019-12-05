@@ -133,7 +133,7 @@ void main()
     executeProgram(memory);
 }
 
-size_t executeProgram(int[] memory)
+void executeProgram(int[] memory)
 {
     size_t instructionPointer = 0;
     while (true)
@@ -143,5 +143,4 @@ size_t executeProgram(int[] memory)
         if (_continue == Continue.no)
             break;
     }
-    return memory[0];
 }
