@@ -24,7 +24,6 @@ auto ancestorsWithDistances(string[string] directOrbits, string x)
         size_t count;
 
     public:
-
         bool empty() const @property
         {
             return current == "COM";
@@ -39,11 +38,6 @@ auto ancestorsWithDistances(string[string] directOrbits, string x)
         {
             current = directOrbits[current];
             count += 1;
-        }
-
-        AncestorsWithDistances save()
-        {
-            return this;
         }
     }
 
