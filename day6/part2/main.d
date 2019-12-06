@@ -2,9 +2,6 @@ module day6.part2.main;
 
 import std;
 
-alias Pair = Tuple!(string, "key", string, "value");
-alias pair = tuple!("key", "value");
-
 void main()
 {
     auto directOrbits = File("input", "r").byLine
