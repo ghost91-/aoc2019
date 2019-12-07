@@ -1,6 +1,21 @@
 module day7.part2.main;
 
 import std;
+import core.thread.fiber;
+
+void main()
+{
+    auto memory = File("input", "r").readln.strip.splitter(",").map!(to!int).array;
+
+    maxThrusterSignal(memory).writeln;
+}
+
+auto maxThrusterSignal(int[] memory)
+{
+    return iota(5, 10).permutations
+        .map!(phaseSettings => thrusterSignal(memory, phaseSettings.array))
+        .fold!max;
+}
 
 class Subject(T)
 {
@@ -27,339 +42,518 @@ class Subject(T)
     }
 }
 
-/* For some reason it is not possible to chain the amps directly: This always
-   results in an assertion in range/package.d:1009 */
-auto calculateOutput(int[] phaseSettings, int[] memory)
+struct Scheduler
 {
-    auto memories = phaseSettings.map!(i => memory.dup).array;
-
-    auto input0 = new Subject!int();
-    auto input1 = new Subject!int();
-    auto input2 = new Subject!int();
-    auto input3 = new Subject!int();
-    auto input4 = new Subject!int();
-
-    input0.put(0);
-    auto amp0 = applyProgram([phaseSettings[0]].chain(input0), memories[0]);
-    input1.put(amp0.front);
-    auto amp1 = applyProgram([phaseSettings[1]].chain(input1), memories[1]);
-    input2.put(amp1.front);
-    auto amp2 = applyProgram([phaseSettings[2]].chain(input2), memories[2]);
-    input3.put(amp2.front);
-    auto amp3 = applyProgram([phaseSettings[3]].chain(input3), memories[3]);
-    input4.put(amp3.front);
-    auto amp4 = applyProgram([phaseSettings[4]].chain(input4), memories[4]);
-
-    int result;
-    while (!amp4.empty)
+private:
+    Fiber[] fibers = [];
+public:
+    void schedule(Fiber fiber)
     {
-        result = amp4.front;
-        input0.put(amp4.front);
-        amp0.popFront();
-        input1.put(amp0.front);
-        amp1.popFront();
-        input2.put(amp1.front);
-        amp2.popFront();
-        input3.put(amp2.front);
-        amp3.popFront();
-        input4.put(amp3.front);
-        amp4.popFront();
+        this.fibers ~= fiber;
     }
-    return result;
-}
 
-void main()
-{
-    auto memory = File("input", "r").readln.strip.splitter(",").map!(to!int).array;
-    immutable backup = memory.dup;
-
-    iota(5, 10).permutations
-        .map!(phaseSettings => phaseSettings.array.calculateOutput(memory))
-        .fold!max
-        .writeln;
-
-    assert(backup == memory);
-}
-
-enum Opcode
-{
-    add = 1,
-    multiply = 2,
-    input = 3,
-    output = 4,
-    jumpIfTrue = 5,
-    jumpIfFalse = 6,
-    lessThan = 7,
-    equals = 8,
-    halt = 99
-}
-
-enum ParameterMode
-{
-    position = 0,
-    immediate = 1
-}
-
-struct Parameter
-{
-    int value;
-    ParameterMode mode;
-
-    ref int derefIfNeeded(int[] memory)
+    void run()
     {
-        if (mode == ParameterMode.immediate)
-            return value;
-        else
-            return memory[value];
+        while (!fibers.empty)
+        {
+            fibers.each!(fiber => fiber.call());
+            fibers = fibers.filter!(f => f.state != Fiber.State.TERM).array;
+        }
     }
+
+}
+
+auto thrusterSignal(int[] memory, int[] phaseSettings)
+{
+    auto subjects = iota(5).map!(i => new Subject!int()).array;
+
+    iota(5).each!(i => subjects[i].put(phaseSettings[i]));
+    auto fibers = iota(5).map!(i => createProcess(memory.dup, subjects[i], subjects[(i + 1) % 5]));
+
+    subjects[0].put(0);
+
+    auto scheduler = Scheduler();
+    fibers.each!(fiber => scheduler.schedule(fiber));
+    scheduler.run();
+
+    return subjects[0].front;
+}
+
+unittest
+{
+    // given
+    auto memory = [
+        3, 26, 1001, 26, -4, 26, 3, 27, 1002, 27, 2, 27, 1, 27, 26, 27, 4,
+        27, 1001, 28, -1, 28, 1005, 28, 6, 99, 0, 0, 5
+    ];
+
+    // when
+    immutable result = memory.maxThrusterSignal();
+
+    // then
+    assert(result == 139_629_729);
+}
+
+unittest
+{
+    // given
+    auto memory = [
+        3, 52, 1001, 52, -5, 52, 3, 53, 1, 52, 56, 54, 1007, 54, 5, 55, 1005,
+        55, 26, 1001, 54, -5, 54, 1105, 1, 12, 1, 53, 54, 53, 1008, 54, 0, 55,
+        1001, 55, 1, 55, 2, 53, 55, 53, 4, 53, 1001, 56, -1, 56, 1005, 56, 6, 99,
+        0, 0, 0, 0, 10
+    ];
+
+    // when
+    immutable result = memory.maxThrusterSignal();
+
+    // then
+    assert(result == 18_216);
 }
 
 alias Continue = Flag!"continue";
 
-auto parameterMode(int value, size_t parameterIndex)
+auto mode(const int value, const size_t paramIdx)
 {
-    immutable factor = 100 * 10 ^^ parameterIndex;
-    immutable parameterMode = (value / factor) % 10;
-    static foreach (member; EnumMembers!ParameterMode)
-    {
-        if (member == parameterMode)
-            return member;
-    }
-    throw new Exception("Invalid parameter mode %s".format(parameterMode));
+    return (value / (100 * 10 ^^ paramIdx)) % 10;
 }
 
-auto parameter(const size_t instructionPointer, const int[] memory, const size_t parameterIndex)
+ref int param(const size_t ip, int[] memory, const size_t paramIdx)
 {
-    auto mode = parameterMode(memory[instructionPointer], parameterIndex);
-    return Parameter(memory[instructionPointer + 1 + parameterIndex], mode);
+    return mode(memory[ip], paramIdx) == 0 ? memory[memory[ip + 1 + paramIdx]]
+        : memory[ip + 1 + paramIdx];
 }
 
-interface Instruction
+alias addInstruction = (ref size_t ip, int[] memory) => ({
+    param(ip, memory, 2) = param(ip, memory, 0) + param(ip, memory, 1);
+    ip += 4;
+    return Continue.yes;
+});
+
+alias multiplyInstruction = (ref size_t ip, int[] memory) => ({
+    param(ip, memory, 2) = param(ip, memory, 0) * param(ip, memory, 1);
+    ip += 4;
+    return Continue.yes;
+});
+
+alias inputInstruction = (ref size_t ip, int[] memory, ref input) => ({
+    Fiber.yield();
+    param(ip, memory, 0) = input.front;
+    input.popFront();
+    ip += 2;
+    return Continue.yes;
+});
+
+alias outputInstruction = (ref size_t ip, int[] memory, ref output) => ({
+    output.put(param(ip, memory, 0));
+    ip += 2;
+    return Continue.yes;
+});
+
+alias jumpIfTrueInstruction = (ref size_t ip, int[] memory) => ({
+    if (param(ip, memory, 0) != 0)
+        ip = param(ip, memory, 1).to!size_t;
+    else
+        ip += 3;
+    return Continue.yes;
+});
+
+alias jumpIfFalseInstruction = (ref size_t ip, int[] memory) => ({
+    if (param(ip, memory, 0) == 0)
+        ip = param(ip, memory, 1).to!size_t;
+    else
+        ip += 3;
+    return Continue.yes;
+});
+
+alias lessThanInstruction = (ref size_t ip, int[] memory) => ({
+    param(ip, memory, 2) = param(ip, memory, 0) < param(ip, memory, 1) ? 1 : 0;
+    ip += 4;
+    return Continue.yes;
+});
+
+alias equalsInstruction = (ref size_t ip, int[] memory) => ({
+    param(ip, memory, 2) = param(ip, memory, 0) == param(ip, memory, 1) ? 1 : 0;
+    ip += 4;
+    return Continue.yes;
+});
+
+alias haltInstruction = (ref size_t ip, int[] memory) => delegate() => Continue.no;
+
+Fiber createProcess(Input, Output)(int[] memory, Input input, Output output)
 {
-    Continue execute(ref size_t instructionPointer, int[] memory);
-}
-
-class AddInstruction : Instruction
-{
-private:
-    Parameter value1, value2, outAddress;
-
-public:
-    this(size_t instructionPointer, int[] memory)
-    {
-        value1 = parameter(instructionPointer, memory, 0);
-        value2 = parameter(instructionPointer, memory, 1);
-        outAddress = parameter(instructionPointer, memory, 2);
-    }
-
-    override Continue execute(ref size_t instructionPointer, int[] memory)
-    {
-        outAddress.derefIfNeeded(memory) = value1.derefIfNeeded(
-                memory) + value2.derefIfNeeded(memory);
-        instructionPointer += 4;
-        return Continue.yes;
-    }
-}
-
-class MultiplyInstruction : Instruction
-{
-private:
-    Parameter value1, value2, outAddress;
-
-public:
-    this(size_t instructionPointer, int[] memory)
-    {
-        value1 = parameter(instructionPointer, memory, 0);
-        value2 = parameter(instructionPointer, memory, 1);
-        outAddress = parameter(instructionPointer, memory, 2);
-    }
-
-    override Continue execute(ref size_t instructionPointer, int[] memory)
-    {
-        outAddress.derefIfNeeded(memory) = value1.derefIfNeeded(
-                memory) * value2.derefIfNeeded(memory);
-        instructionPointer += 4;
-        return Continue.yes;
-    }
-}
-
-class InputInstruction(alias ir) : Instruction
-{
-private:
-    Parameter outAddress;
-
-public:
-    this(size_t instructionPointer, int[] memory)
-    {
-        outAddress = parameter(instructionPointer, memory, 0);
-    }
-
-    override Continue execute(ref size_t instructionPointer, int[] memory)
-    {
-        outAddress.derefIfNeeded(memory) = ir.front;
-        ir.popFront();
-        instructionPointer += 2;
-        return Continue.yes;
-    }
-}
-
-class OutputInstruction : Instruction
-{
-private:
-    Parameter value;
-
-public:
-    this(size_t instructionPointer, int[] memory)
-    {
-        value = parameter(instructionPointer, memory, 0);
-    }
-
-    override Continue execute(ref size_t instructionPointer, int[] memory)
-    {
-        yield(value.derefIfNeeded(memory));
-        instructionPointer += 2;
-        return Continue.yes;
-    }
-}
-
-class JumpIfTrueInstruction : Instruction
-{
-private:
-    Parameter toBeChecked, target;
-
-public:
-    this(size_t instructionPointer, int[] memory)
-    {
-        toBeChecked = parameter(instructionPointer, memory, 0);
-        target = parameter(instructionPointer, memory, 1);
-    }
-
-    override Continue execute(ref size_t instructionPointer, int[] memory)
-    {
-        if (toBeChecked.derefIfNeeded(memory) != 0)
-            instructionPointer = target.derefIfNeeded(memory).to!size_t;
-        else
-            instructionPointer += 3;
-        return Continue.yes;
-    }
-}
-
-class JumpIfFalseInstruction : Instruction
-{
-private:
-    Parameter toBeChecked, target;
-
-public:
-    this(size_t instructionPointer, int[] memory)
-    {
-        toBeChecked = parameter(instructionPointer, memory, 0);
-        target = parameter(instructionPointer, memory, 1);
-    }
-
-    override Continue execute(ref size_t instructionPointer, int[] memory)
-    {
-        if (toBeChecked.derefIfNeeded(memory) == 0)
-            instructionPointer = target.derefIfNeeded(memory).to!size_t;
-        else
-            instructionPointer += 3;
-        return Continue.yes;
-    }
-}
-
-class LessThanInstruction : Instruction
-{
-private:
-    Parameter value1, value2, outAddress;
-
-public:
-    this(size_t instructionPointer, int[] memory)
-    {
-        value1 = parameter(instructionPointer, memory, 0);
-        value2 = parameter(instructionPointer, memory, 1);
-        outAddress = parameter(instructionPointer, memory, 2);
-    }
-
-    override Continue execute(ref size_t instructionPointer, int[] memory)
-    {
-        outAddress.derefIfNeeded(memory) = value1.derefIfNeeded(
-                memory) < value2.derefIfNeeded(memory) ? 1 : 0;
-        instructionPointer += 4;
-        return Continue.yes;
-    }
-}
-
-class EqualsInstruction : Instruction
-{
-private:
-    Parameter value1, value2, outAddress;
-
-public:
-    this(size_t instructionPointer, int[] memory)
-    {
-        value1 = parameter(instructionPointer, memory, 0);
-        value2 = parameter(instructionPointer, memory, 1);
-        outAddress = parameter(instructionPointer, memory, 2);
-    }
-
-    override Continue execute(ref size_t instructionPointer, int[] memory)
-    {
-        outAddress.derefIfNeeded(memory) = value1.derefIfNeeded(
-                memory) == value2.derefIfNeeded(memory) ? 1 : 0;
-        instructionPointer += 4;
-        return Continue.yes;
-    }
-}
-
-class HaltInstruction : Instruction
-{
-    this(size_t instructionPointer, int[] memory)
-    {
-    }
-
-    override Continue execute(ref size_t instructionPointer, int[] memory)
-    {
-        return Continue.no;
-    }
-}
-
-Instruction nextInstruction(alias ir)(size_t instructionPointer, int[] memory)
-{
-    immutable opcode = memory[instructionPointer] % 100;
-    switch (opcode)
-    {
-    case Opcode.add:
-        return new AddInstruction(instructionPointer, memory);
-    case Opcode.multiply:
-        return new MultiplyInstruction(instructionPointer, memory);
-    case Opcode.input:
-        return new InputInstruction!(ir)(instructionPointer, memory);
-    case Opcode.output:
-        return new OutputInstruction(instructionPointer, memory);
-    case Opcode.jumpIfTrue:
-        return new JumpIfTrueInstruction(instructionPointer, memory);
-    case Opcode.jumpIfFalse:
-        return new JumpIfFalseInstruction(instructionPointer, memory);
-    case Opcode.lessThan:
-        return new LessThanInstruction(instructionPointer, memory);
-    case Opcode.equals:
-        return new EqualsInstruction(instructionPointer, memory);
-    case Opcode.halt:
-        return new HaltInstruction(instructionPointer, memory);
-    default:
-        throw new Exception("Invalid opcode %s".format(opcode));
-    }
-}
-
-auto applyProgram(IR)(IR ir, int[] memory)
-{
-    return new Generator!int({
+    return new Fiber(() {
         size_t instructionPointer = 0;
         while (true)
         {
-            auto instruction = nextInstruction!(ir)(instructionPointer, memory);
-            immutable _continue = instruction.execute(instructionPointer, memory);
+            immutable opcode = memory[instructionPointer] % 100;
+
+            immutable _continue = [
+                1: addInstruction(instructionPointer, memory),
+                2: multiplyInstruction(instructionPointer, memory),
+                3: inputInstruction(instructionPointer, memory, input),
+                4: outputInstruction(instructionPointer, memory, output),
+                5: jumpIfTrueInstruction(instructionPointer, memory),
+                6: jumpIfFalseInstruction(instructionPointer, memory),
+                7: lessThanInstruction(instructionPointer, memory),
+                8: equalsInstruction(instructionPointer, memory),
+                99: haltInstruction(instructionPointer, memory),
+            ][opcode]();
             if (_continue == Continue.no)
                 break;
         }
     });
+}
+
+auto outputRange(alias fn)()
+{
+    struct R
+    {
+        void put(Parameters!fn e)
+        {
+            fn(e);
+        }
+    }
+
+    return R();
+}
+
+@("basic math")
+{
+    unittest
+    {
+        // given
+        auto memory = [1, 0, 0, 0, 99];
+        int[] input = [];
+
+        // when
+        auto fiber = createProcess(memory, input, nullSink);
+        while (fiber.state != Fiber.State.TERM)
+        {
+            fiber.call();
+        }
+
+        // then
+        assert(memory == [2, 0, 0, 0, 99]);
+    }
+
+    unittest
+    {
+        // given
+        auto memory = [2, 3, 0, 3, 99];
+        int[] input = [];
+
+        // when
+        auto fiber = createProcess(memory, input, nullSink);
+        while (fiber.state != Fiber.State.TERM)
+        {
+            fiber.call();
+        }
+
+        // then
+        assert(memory == [2, 3, 0, 6, 99]);
+    }
+
+    unittest
+    {
+        // given
+        auto memory = [2, 4, 4, 5, 99, 0];
+        int[] input = [];
+
+        // when
+        auto fiber = createProcess(memory, input, nullSink);
+        while (fiber.state != Fiber.State.TERM)
+        {
+            fiber.call();
+        }
+
+        // then
+        assert(memory == [2, 4, 4, 5, 99, 9801]);
+    }
+
+    unittest
+    {
+        // given
+        auto memory = [1, 1, 1, 4, 99, 5, 6, 0, 99];
+        int[] input = [];
+
+        // when
+        auto fiber = createProcess(memory, input, nullSink);
+        while (fiber.state != Fiber.State.TERM)
+        {
+            fiber.call();
+        }
+
+        // then
+        assert(memory == [30, 1, 1, 4, 2, 5, 6, 0, 99]);
+    }
+
+    unittest
+    {
+        // given
+        auto memory = [
+            1, 12, 2, 3, 1, 1, 2, 3, 1, 3, 4, 3, 1, 5, 0, 3, 2, 6, 1, 19, 1,
+            19, 5, 23, 2, 9, 23, 27, 1, 5, 27, 31, 1, 5, 31, 35, 1, 35, 13,
+            39, 1, 39, 9, 43, 1, 5, 43, 47, 1, 47, 6, 51, 1, 51, 13, 55, 1, 55,
+            9, 59, 1, 59, 13, 63, 2, 63, 13, 67, 1, 67, 10, 71, 1, 71, 6, 75,
+            2, 10, 75, 79, 2, 10, 79, 83, 1, 5, 83, 87, 2, 6, 87, 91, 1, 91, 6,
+            95, 1, 95, 13, 99, 2, 99, 13, 103, 1, 103, 9, 107, 1, 10, 107,
+            111, 2, 111, 13, 115, 1, 10, 115, 119, 1, 10, 119, 123, 2, 13,
+            123, 127, 2, 6, 127, 131, 1, 13, 131, 135, 1, 135, 2, 139, 1, 139,
+            6, 0, 99, 2, 0, 14, 0
+        ];
+        int[] input = [];
+
+        // when
+        auto fiber = createProcess(memory, input, nullSink);
+        while (fiber.state != Fiber.State.TERM)
+        {
+            fiber.call();
+        }
+
+        // then
+        assert(memory[0] == 4_090_689);
+    }
+
+}
+
+@(
+        "Using position mode, consider whether the input is equal to 8; output 1 (if it is) or 0 (if it is not).")
+{
+    unittest
+    {
+        // given
+        immutable data = "3,9,8,9,10,9,4,9,99,-1,8";
+        auto memory = data.splitter(",").map!(to!int).array;
+        int result;
+        auto input = only(8);
+        auto output = outputRange!((int e) { result = e; })();
+
+        // when
+        auto fiber = createProcess(memory, input, output);
+        while (fiber.state != Fiber.State.TERM)
+        {
+            fiber.call();
+        }
+
+        // then
+        assert(result == 1);
+    }
+
+    unittest
+    {
+        // given
+        immutable data = "3,9,8,9,10,9,4,9,99,-1,8";
+        auto memory = data.splitter(",").map!(to!int).array;
+        int result;
+        auto input = only(7);
+        auto output = outputRange!((int e) { result = e; })();
+
+        // when
+        auto fiber = createProcess(memory, input, output);
+        while (fiber.state != Fiber.State.TERM)
+        {
+            fiber.call();
+        }
+
+        // then
+        assert(result == 0);
+    }
+}
+
+@(
+        "Using position mode, consider whether the input is less than 8; output 1 (if it is) or 0 (if it is not).")
+{
+    unittest
+    {
+        // given
+        immutable data = "3,9,7,9,10,9,4,9,99,-1,8";
+        auto memory = data.splitter(",").map!(to!int).array;
+        int result;
+        auto input = only(7);
+        auto output = outputRange!((int e) { result = e; })();
+
+        // when
+        auto fiber = createProcess(memory, input, output);
+        while (fiber.state != Fiber.State.TERM)
+        {
+            fiber.call();
+        }
+
+        // then
+        assert(result == 1);
+    }
+
+    unittest
+    {
+        // given
+        immutable data = "3,9,7,9,10,9,4,9,99,-1,8";
+        auto memory = data.splitter(",").map!(to!int).array;
+        int result;
+        auto input = only(8);
+        auto output = outputRange!((int e) { result = e; })();
+
+        // when
+        auto fiber = createProcess(memory, input, output);
+        while (fiber.state != Fiber.State.TERM)
+        {
+            fiber.call();
+        }
+
+        // then
+        assert(result == 0);
+    }
+}
+
+@(
+        "Using immediate mode, consider whether the input is equal to 8; output 1 (if it is) or 0 (if it is not).")
+{
+    unittest
+    {
+        // given
+        immutable data = "3,3,1108,-1,8,3,4,3,99";
+        auto memory = data.splitter(",").map!(to!int).array;
+        int result;
+        auto input = only(8);
+        auto output = outputRange!((int e) { result = e; })();
+
+        // when
+        auto fiber = createProcess(memory, input, output);
+        while (fiber.state != Fiber.State.TERM)
+        {
+            fiber.call();
+        }
+
+        // then
+        assert(result == 1);
+    }
+
+    unittest
+    {
+        // given
+        immutable data = "3,3,1108,-1,8,3,4,3,99";
+        auto memory = data.splitter(",").map!(to!int).array;
+        int result;
+        auto input = only(7);
+        auto output = outputRange!((int e) { result = e; })();
+
+        // when
+        auto fiber = createProcess(memory, input, output);
+        while (fiber.state != Fiber.State.TERM)
+        {
+            fiber.call();
+        }
+
+        // then
+        assert(result == 0);
+    }
+}
+
+@(
+        "Using immediate mode, consider whether the input is less than 8; output 1 (if it is) or 0 (if it is not).")
+{
+    unittest
+    {
+        // given
+        immutable data = "3,3,1107,-1,8,3,4,3,99";
+        auto memory = data.splitter(",").map!(to!int).array;
+        int result;
+        auto input = only(7);
+        auto output = outputRange!((int e) { result = e; })();
+
+        // when
+        auto fiber = createProcess(memory, input, output);
+        while (fiber.state != Fiber.State.TERM)
+        {
+            fiber.call();
+        }
+
+        // then
+        assert(result == 1);
+    }
+
+    unittest
+    {
+        // given
+        immutable data = "3,3,1107,-1,8,3,4,3,99";
+        auto memory = data.splitter(",").map!(to!int).array;
+        int result;
+        auto input = only(8);
+        auto output = outputRange!((int e) { result = e; })();
+
+        // when
+        auto fiber = createProcess(memory, input, output);
+        while (fiber.state != Fiber.State.TERM)
+        {
+            fiber.call();
+        }
+
+        // then
+        assert(result == 0);
+    }
+}
+
+@(
+        "Consider whether the input is below 8, equal to 8 or above 8; output 999 (below), 1000 (equal) or 1001 (above)")
+{
+
+    unittest
+    {
+        // given
+        immutable data = "3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99";
+        auto memory = data.splitter(",").map!(to!int).array;
+        int result;
+        auto input = only(7);
+        auto output = outputRange!((int e) { result = e; })();
+
+        // when
+        auto fiber = createProcess(memory, input, output);
+        while (fiber.state != Fiber.State.TERM)
+        {
+            fiber.call();
+        }
+
+        // then
+        assert(result == 999);
+    }
+
+    unittest
+    {
+        // given
+        immutable data = "3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99";
+        auto memory = data.splitter(",").map!(to!int).array;
+        int result;
+        auto input = only(8);
+        auto output = outputRange!((int e) { result = e; })();
+
+        // when
+        auto fiber = createProcess(memory, input, output);
+        while (fiber.state != Fiber.State.TERM)
+        {
+            fiber.call();
+        }
+
+        // then
+        assert(result == 1000);
+    }
+
+    unittest
+    {
+        // given
+        immutable data = "3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99";
+        auto memory = data.splitter(",").map!(to!int).array;
+        int result;
+        auto input = only(9);
+        auto output = outputRange!((int e) { result = e; })();
+
+        // when
+        auto fiber = createProcess(memory, input, output);
+        while (fiber.state != Fiber.State.TERM)
+        {
+            fiber.call();
+        }
+
+        // then
+        assert(result == 1001);
+    }
 }
