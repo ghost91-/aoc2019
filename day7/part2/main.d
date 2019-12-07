@@ -17,7 +17,7 @@ auto maxThrusterSignal(int[] memory)
         .fold!max;
 }
 
-class Subject(T)
+class Pipe(T)
 {
     T[] data;
 
@@ -44,16 +44,16 @@ class Subject(T)
 
 auto thrusterSignal(int[] memory, int[] phaseSettings)
 {
-    auto subjects = iota(5).map!(i => new Subject!int()).array;
-    iota(5).each!(i => subjects[i].put(phaseSettings[i]));
-    subjects[0].put(0);
+    auto pipes = iota(5).map!(i => new Pipe!int()).array;
+    iota(5).each!(i => pipes[i].put(phaseSettings[i]));
+    pipes[0].put(0);
 
     auto scheduler = Scheduler();
-    iota(5).map!(i => createFiber(memory.dup, subjects[i], subjects[(i + 1) % 5]))
+    iota(5).map!(i => createFiber(memory.dup, pipes[i], pipes[(i + 1) % 5]))
         .each!(fiber => scheduler.schedule(fiber));
     scheduler.run();
 
-    return subjects[0].front;
+    return pipes[0].front;
 }
 
 unittest
