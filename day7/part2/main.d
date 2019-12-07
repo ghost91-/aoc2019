@@ -7,19 +7,26 @@ void main()
 {
     auto memory = File("input", "r").readln.strip.splitter(",").map!(to!int).array;
 
-    maxThrusterSignal(memory).writeln;
+    memory.maxThrusterSignal.writeln;
 }
 
 auto maxThrusterSignal(int[] memory)
 {
     return iota(5, 10).permutations
-        .map!(phaseSettings => thrusterSignal(memory, phaseSettings.array))
+        .map!(phaseSettings => memory.thrusterSignal(phaseSettings))
         .fold!max;
 }
 
 class Pipe(T)
 {
+private:
     T[] data;
+
+public:
+    this(T[] data = [])
+    {
+        this.data = data;
+    }
 
     void put(T e)
     {
@@ -42,10 +49,9 @@ class Pipe(T)
     }
 }
 
-auto thrusterSignal(int[] memory, int[] phaseSettings)
+auto thrusterSignal(PS)(int[] memory, PS phaseSettings)
 {
-    auto pipes = iota(5).map!(i => new Pipe!int()).array;
-    iota(5).each!(i => pipes[i].put(phaseSettings[i]));
+    auto pipes = phaseSettings.map!(phaseSetting => new Pipe!int([phaseSetting])).array;
     pipes[0].put(0);
 
     auto scheduler = Scheduler();
