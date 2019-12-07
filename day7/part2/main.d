@@ -49,13 +49,27 @@ public:
     }
 }
 
+auto rotate(R)(R r, int n)
+{
+    return n < 0 ? r[-n .. $].chain(r[0 .. -n]) : r[($ - n) .. $].chain(r[0 .. ($ - n)]);
+}
+
+unittest
+{
+    assert([1, 2, 3].rotate(-1).equal([2, 3, 1]));
+    assert([1, 2, 3].rotate(1).equal([3, 1, 2]));
+    assert([1, 2, 3].rotate(-2).equal([3, 1, 2]));
+    assert([1, 2, 3].rotate(-1).rotate(1).equal([1, 2, 3]));
+    assert([1, 2, 3].rotate(-1).rotate(-1).equal([3, 1, 2]));
+}
+
 auto thrusterSignal(PS)(int[] memory, PS phaseSettings)
 {
     auto pipes = phaseSettings.map!(phaseSetting => new Pipe!int([phaseSetting])).array;
     pipes[0].put(0);
 
     auto scheduler = Scheduler();
-    iota(5).map!(i => createFiber(memory.dup, pipes[i], pipes[(i + 1) % 5]))
+    pipes.zip(pipes.rotate(-1)).map!(pipePair => createFiber(memory.dup, pipePair[0], pipePair[1]))
         .each!(fiber => scheduler.schedule(fiber));
     scheduler.run();
 
