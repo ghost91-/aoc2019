@@ -42,38 +42,15 @@ class Subject(T)
     }
 }
 
-struct Scheduler
-{
-private:
-    Fiber[] fibers = [];
-public:
-    void schedule(Fiber fiber)
-    {
-        this.fibers ~= fiber;
-    }
-
-    void run()
-    {
-        while (!fibers.empty)
-        {
-            fibers.each!(fiber => fiber.call());
-            fibers = fibers.filter!(f => f.state != Fiber.State.TERM).array;
-        }
-    }
-
-}
-
 auto thrusterSignal(int[] memory, int[] phaseSettings)
 {
     auto subjects = iota(5).map!(i => new Subject!int()).array;
-
     iota(5).each!(i => subjects[i].put(phaseSettings[i]));
-    auto fibers = iota(5).map!(i => createProcess(memory.dup, subjects[i], subjects[(i + 1) % 5]));
-
     subjects[0].put(0);
 
     auto scheduler = Scheduler();
-    fibers.each!(fiber => scheduler.schedule(fiber));
+    iota(5).map!(i => createFiber(memory.dup, subjects[i], subjects[(i + 1) % 5]))
+        .each!(fiber => scheduler.schedule(fiber));
     scheduler.run();
 
     return subjects[0].front;
@@ -109,6 +86,28 @@ unittest
 
     // then
     assert(result == 18_216);
+}
+
+struct Scheduler
+{
+private:
+    Fiber[] fibers = [];
+public:
+    auto schedule(Fiber fiber)
+    {
+        this.fibers ~= fiber;
+        return this;
+    }
+
+    void run()
+    {
+        while (!fibers.empty)
+        {
+            fibers.each!(fiber => fiber.call());
+            fibers = fibers.filter!(f => f.state != Fiber.State.TERM).array;
+        }
+    }
+
 }
 
 alias Continue = Flag!"continue";
@@ -180,14 +179,13 @@ alias equalsInstruction = (ref size_t ip, int[] memory) => ({
 
 alias haltInstruction = (ref size_t ip, int[] memory) => delegate() => Continue.no;
 
-Fiber createProcess(Input, Output)(int[] memory, Input input, Output output)
+auto createFiber(Input, Output)(int[] memory, Input input, Output output)
 {
     return new Fiber(() {
         size_t instructionPointer = 0;
         while (true)
         {
             immutable opcode = memory[instructionPointer] % 100;
-
             immutable _continue = [
                 1: addInstruction(instructionPointer, memory),
                 2: multiplyInstruction(instructionPointer, memory),
@@ -227,11 +225,7 @@ auto outputRange(alias fn)()
         int[] input = [];
 
         // when
-        auto fiber = createProcess(memory, input, nullSink);
-        while (fiber.state != Fiber.State.TERM)
-        {
-            fiber.call();
-        }
+        Scheduler().schedule(createFiber(memory, input, nullSink)).run();
 
         // then
         assert(memory == [2, 0, 0, 0, 99]);
@@ -244,11 +238,7 @@ auto outputRange(alias fn)()
         int[] input = [];
 
         // when
-        auto fiber = createProcess(memory, input, nullSink);
-        while (fiber.state != Fiber.State.TERM)
-        {
-            fiber.call();
-        }
+        Scheduler().schedule(createFiber(memory, input, nullSink)).run();
 
         // then
         assert(memory == [2, 3, 0, 6, 99]);
@@ -261,11 +251,7 @@ auto outputRange(alias fn)()
         int[] input = [];
 
         // when
-        auto fiber = createProcess(memory, input, nullSink);
-        while (fiber.state != Fiber.State.TERM)
-        {
-            fiber.call();
-        }
+        Scheduler().schedule(createFiber(memory, input, nullSink)).run();
 
         // then
         assert(memory == [2, 4, 4, 5, 99, 9801]);
@@ -278,11 +264,7 @@ auto outputRange(alias fn)()
         int[] input = [];
 
         // when
-        auto fiber = createProcess(memory, input, nullSink);
-        while (fiber.state != Fiber.State.TERM)
-        {
-            fiber.call();
-        }
+        Scheduler().schedule(createFiber(memory, input, nullSink)).run();
 
         // then
         assert(memory == [30, 1, 1, 4, 2, 5, 6, 0, 99]);
@@ -305,11 +287,7 @@ auto outputRange(alias fn)()
         int[] input = [];
 
         // when
-        auto fiber = createProcess(memory, input, nullSink);
-        while (fiber.state != Fiber.State.TERM)
-        {
-            fiber.call();
-        }
+        Scheduler().schedule(createFiber(memory, input, nullSink)).run();
 
         // then
         assert(memory[0] == 4_090_689);
@@ -330,11 +308,7 @@ auto outputRange(alias fn)()
         auto output = outputRange!((int e) { result = e; })();
 
         // when
-        auto fiber = createProcess(memory, input, output);
-        while (fiber.state != Fiber.State.TERM)
-        {
-            fiber.call();
-        }
+        Scheduler().schedule(createFiber(memory, input, output)).run();
 
         // then
         assert(result == 1);
@@ -350,11 +324,7 @@ auto outputRange(alias fn)()
         auto output = outputRange!((int e) { result = e; })();
 
         // when
-        auto fiber = createProcess(memory, input, output);
-        while (fiber.state != Fiber.State.TERM)
-        {
-            fiber.call();
-        }
+        Scheduler().schedule(createFiber(memory, input, output)).run();
 
         // then
         assert(result == 0);
@@ -374,11 +344,7 @@ auto outputRange(alias fn)()
         auto output = outputRange!((int e) { result = e; })();
 
         // when
-        auto fiber = createProcess(memory, input, output);
-        while (fiber.state != Fiber.State.TERM)
-        {
-            fiber.call();
-        }
+        Scheduler().schedule(createFiber(memory, input, output)).run();
 
         // then
         assert(result == 1);
@@ -394,11 +360,7 @@ auto outputRange(alias fn)()
         auto output = outputRange!((int e) { result = e; })();
 
         // when
-        auto fiber = createProcess(memory, input, output);
-        while (fiber.state != Fiber.State.TERM)
-        {
-            fiber.call();
-        }
+        Scheduler().schedule(createFiber(memory, input, output)).run();
 
         // then
         assert(result == 0);
@@ -418,11 +380,7 @@ auto outputRange(alias fn)()
         auto output = outputRange!((int e) { result = e; })();
 
         // when
-        auto fiber = createProcess(memory, input, output);
-        while (fiber.state != Fiber.State.TERM)
-        {
-            fiber.call();
-        }
+        Scheduler().schedule(createFiber(memory, input, output)).run();
 
         // then
         assert(result == 1);
@@ -438,11 +396,7 @@ auto outputRange(alias fn)()
         auto output = outputRange!((int e) { result = e; })();
 
         // when
-        auto fiber = createProcess(memory, input, output);
-        while (fiber.state != Fiber.State.TERM)
-        {
-            fiber.call();
-        }
+        Scheduler().schedule(createFiber(memory, input, output)).run();
 
         // then
         assert(result == 0);
@@ -462,11 +416,7 @@ auto outputRange(alias fn)()
         auto output = outputRange!((int e) { result = e; })();
 
         // when
-        auto fiber = createProcess(memory, input, output);
-        while (fiber.state != Fiber.State.TERM)
-        {
-            fiber.call();
-        }
+        Scheduler().schedule(createFiber(memory, input, output)).run();
 
         // then
         assert(result == 1);
@@ -482,11 +432,7 @@ auto outputRange(alias fn)()
         auto output = outputRange!((int e) { result = e; })();
 
         // when
-        auto fiber = createProcess(memory, input, output);
-        while (fiber.state != Fiber.State.TERM)
-        {
-            fiber.call();
-        }
+        Scheduler().schedule(createFiber(memory, input, output)).run();
 
         // then
         assert(result == 0);
@@ -507,11 +453,7 @@ auto outputRange(alias fn)()
         auto output = outputRange!((int e) { result = e; })();
 
         // when
-        auto fiber = createProcess(memory, input, output);
-        while (fiber.state != Fiber.State.TERM)
-        {
-            fiber.call();
-        }
+        Scheduler().schedule(createFiber(memory, input, output)).run();
 
         // then
         assert(result == 999);
@@ -527,11 +469,7 @@ auto outputRange(alias fn)()
         auto output = outputRange!((int e) { result = e; })();
 
         // when
-        auto fiber = createProcess(memory, input, output);
-        while (fiber.state != Fiber.State.TERM)
-        {
-            fiber.call();
-        }
+        Scheduler().schedule(createFiber(memory, input, output)).run();
 
         // then
         assert(result == 1000);
@@ -547,11 +485,7 @@ auto outputRange(alias fn)()
         auto output = outputRange!((int e) { result = e; })();
 
         // when
-        auto fiber = createProcess(memory, input, output);
-        while (fiber.state != Fiber.State.TERM)
-        {
-            fiber.call();
-        }
+        Scheduler().schedule(createFiber(memory, input, output)).run();
 
         // then
         assert(result == 1001);
