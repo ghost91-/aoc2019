@@ -1,7 +1,7 @@
 module day7.part2.main;
 
 import std;
-import core.thread.fiber;
+import core.thread;
 
 void main()
 {
