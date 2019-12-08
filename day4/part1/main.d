@@ -1,3 +1,5 @@
+module day4.part1.main;
+
 import std;
 
 void main()

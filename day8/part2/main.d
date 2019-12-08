@@ -1,4 +1,5 @@
-module day8.part1.main;
+module day8.part2.main;
+
 import std;
 
 void main()

@@ -1,3 +1,5 @@
+module day3.part2.main;
+
 import std;
 
 alias Position = Tuple!(int, int);

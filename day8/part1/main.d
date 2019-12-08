@@ -1,4 +1,5 @@
 module day8.part1.main;
+
 import std;
 
 void main()

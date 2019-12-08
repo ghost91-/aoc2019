@@ -1,4 +1,4 @@
-module day2.part1.main;
+module day2.part2.main;
 
 import std;
 
