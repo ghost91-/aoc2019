@@ -8,8 +8,7 @@ void main()
         .map!(to!int)
         .map!(it => it - 48);
 
-    auto layerWithFewestZeros = data.toImage(25, 6)
-        .minElement!(layer => layer.joiner.filter!(elem => elem == 0).count);
+    auto layerWithFewestZeros = data.toImage(25, 6).minElement!(layer => layer.joiner.count(0));
 
     auto ones = layerWithFewestZeros.joiner.count(1);
     auto twos = layerWithFewestZeros.joiner.count(2);
