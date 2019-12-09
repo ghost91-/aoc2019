@@ -1,4 +1,4 @@
-module day9.part1.main;
+module day9.part2.main;
 
 import std;
 import core.thread;
@@ -7,9 +7,22 @@ void main()
 {
     auto memory = File("input", "r").readln.strip.splitter(",").map!(to!long).array;
     memory.length = 2048;
-    auto input = [1L];
+    auto input = [2L];
     auto output = outputRange!((long e) { e.writeln; })();
     Scheduler().schedule(createFiber(memory, input, output)).run();
+}
+
+auto outputRange(alias fn)()
+{
+    struct R
+    {
+        void put(Parameters!fn e)
+        {
+            fn(e);
+        }
+    }
+
+    return R();
 }
 
 struct Scheduler
@@ -41,7 +54,7 @@ auto mode(const long value, const size_t paramIdx)
     return (value / (100 * 10 ^^ paramIdx)) % 10;
 }
 
-ref long param(const size_t ip, long[] memory, const size_t rb, const size_t paramIdx)
+ref long param(long[] memory, const size_t ip, const size_t rb, const size_t paramIdx)
 {
     immutable m = mode(memory[ip], paramIdx);
     switch (m)
@@ -57,67 +70,67 @@ ref long param(const size_t ip, long[] memory, const size_t rb, const size_t par
     }
 }
 
-alias addInstruction = (ref size_t ip, long[] memory, ref size_t rb) => ({
-    param(ip, memory, rb, 2) = param(ip, memory, rb, 0) + param(ip, memory, rb, 1);
+alias addInstruction = (long[] memory, ref size_t ip, const size_t rb) => ({
+    param(memory, ip, rb, 2) = param(memory, ip, rb, 0) + param(memory, ip, rb, 1);
     ip += 4;
     return Continue.yes;
 });
 
-alias multiplyInstruction = (ref size_t ip, long[] memory, ref size_t rb) => ({
-    param(ip, memory, rb, 2) = param(ip, memory, rb, 0) * param(ip, memory, rb, 1);
+alias multiplyInstruction = (long[] memory, ref size_t ip, const size_t rb) => ({
+    param(memory, ip, rb, 2) = param(memory, ip, rb, 0) * param(memory, ip, rb, 1);
     ip += 4;
     return Continue.yes;
 });
 
-alias inputInstruction = (ref size_t ip, long[] memory, ref size_t rb, ref input) => ({
+alias inputInstruction = (long[] memory, ref size_t ip, const size_t rb, ref input) => ({
     Fiber.yield();
-    param(ip, memory, rb, 0) = input.front;
+    param(memory, ip, rb, 0) = input.front;
     input.popFront();
     ip += 2;
     return Continue.yes;
 });
 
-alias outputInstruction = (ref size_t ip, long[] memory, ref size_t rb, ref output) => ({
-    output.put(param(ip, memory, rb, 0));
+alias outputInstruction = (long[] memory, ref size_t ip, const size_t rb, ref output) => ({
+    output.put(param(memory, ip, rb, 0));
     ip += 2;
     return Continue.yes;
 });
 
-alias jumpIfTrueInstruction = (ref size_t ip, long[] memory, ref size_t rb) => ({
-    if (param(ip, memory, rb, 0) != 0)
-        ip = param(ip, memory, rb, 1).to!size_t;
+alias jumpIfTrueInstruction = (long[] memory, ref size_t ip, const size_t rb) => ({
+    if (param(memory, ip, rb, 0) != 0)
+        ip = param(memory, ip, rb, 1).to!size_t;
     else
         ip += 3;
     return Continue.yes;
 });
 
-alias jumpIfFalseInstruction = (ref size_t ip, long[] memory, ref size_t rb) => ({
-    if (param(ip, memory, rb, 0) == 0)
-        ip = param(ip, memory, rb, 1).to!size_t;
+alias jumpIfFalseInstruction = (long[] memory, ref size_t ip, const size_t rb) => ({
+    if (param(memory, ip, rb, 0) == 0)
+        ip = param(memory, ip, rb, 1).to!size_t;
     else
         ip += 3;
     return Continue.yes;
 });
 
-alias lessThanInstruction = (ref size_t ip, long[] memory, ref size_t rb) => ({
-    param(ip, memory, rb, 2) = param(ip, memory, rb, 0) < param(ip, memory, rb, 1) ? 1 : 0;
+alias lessThanInstruction = (long[] memory, ref size_t ip, const size_t rb) => ({
+    param(memory, ip, rb, 2) = param(memory, ip, rb, 0) < param(memory, ip, rb, 1) ? 1 : 0;
     ip += 4;
     return Continue.yes;
 });
 
-alias equalsInstruction = (ref size_t ip, long[] memory, ref size_t rb) => ({
-    param(ip, memory, rb, 2) = param(ip, memory, rb, 0) == param(ip, memory, rb, 1) ? 1 : 0;
+alias equalsInstruction = (long[] memory, ref size_t ip, const size_t rb) => ({
+    param(memory, ip, rb, 2) = param(memory, ip, rb, 0) == param(memory, ip, rb, 1) ? 1 : 0;
     ip += 4;
     return Continue.yes;
 });
 
-alias adjustRelatieBaseInstruction = (ref size_t ip, long[] memory, ref size_t rb) => ({
-    rb += param(ip, memory, rb, 0);
+alias adjustRelativeBaseInstruction = (long[] memory, ref size_t ip, ref size_t rb) => ({
+    rb += param(memory, ip, rb, 0);
     ip += 2;
     return Continue.yes;
 });
 
-alias haltInstruction = (ref size_t ip, long[] memory, ref size_t rb) => delegate() => Continue.no;
+alias haltInstruction = () => delegate() => Continue.no;
 
 auto createFiber(Input, Output)(long[] memory, Input input, Output output)
 {
@@ -128,34 +141,21 @@ auto createFiber(Input, Output)(long[] memory, Input input, Output output)
         {
             immutable opcode = memory[ip] % 100;
             immutable _continue = [
-                1: addInstruction(ip, memory, rb),
-                2: multiplyInstruction(ip, memory, rb),
-                3: inputInstruction(ip, memory, rb, input),
-                4: outputInstruction(ip, memory, rb, output),
-                5: jumpIfTrueInstruction(ip, memory, rb),
-                6: jumpIfFalseInstruction(ip, memory, rb),
-                7: lessThanInstruction(ip, memory, rb),
-                8: equalsInstruction(ip, memory, rb),
-                9: adjustRelatieBaseInstruction(ip, memory, rb),
-                99: haltInstruction(ip, memory, rb),
+                1: addInstruction(memory, ip, rb),
+                2: multiplyInstruction(memory, ip, rb),
+                3: inputInstruction(memory, ip, rb, input),
+                4: outputInstruction(memory, ip, rb, output),
+                5: jumpIfTrueInstruction(memory, ip, rb),
+                6: jumpIfFalseInstruction(memory, ip, rb),
+                7: lessThanInstruction(memory, ip, rb),
+                8: equalsInstruction(memory, ip, rb),
+                9: adjustRelativeBaseInstruction(memory, ip, rb),
+                99: haltInstruction(),
             ][opcode]();
             if (_continue == Continue.no)
                 break;
         }
     });
-}
-
-auto outputRange(alias fn)()
-{
-    struct R
-    {
-        void put(Parameters!fn e)
-        {
-            fn(e);
-        }
-    }
-
-    return R();
 }
 
 @("basic math")
