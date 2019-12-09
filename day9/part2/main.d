@@ -70,65 +70,65 @@ ref long param(long[] memory, const size_t ip, const size_t rb, const size_t par
     }
 }
 
-alias addInstruction = (long[] memory, ref size_t ip, const size_t rb) => ({
+alias addInstruction = (long[] memory, ref size_t ip, const size_t rb) => () {
     param(memory, ip, rb, 2) = param(memory, ip, rb, 0) + param(memory, ip, rb, 1);
     ip += 4;
     return Continue.yes;
-});
+};
 
-alias multiplyInstruction = (long[] memory, ref size_t ip, const size_t rb) => ({
+alias multiplyInstruction = (long[] memory, ref size_t ip, const size_t rb) => () {
     param(memory, ip, rb, 2) = param(memory, ip, rb, 0) * param(memory, ip, rb, 1);
     ip += 4;
     return Continue.yes;
-});
+};
 
-alias inputInstruction = (long[] memory, ref size_t ip, const size_t rb, ref input) => ({
+alias inputInstruction = (long[] memory, ref size_t ip, const size_t rb, ref input) => () {
     Fiber.yield();
     param(memory, ip, rb, 0) = input.front;
     input.popFront();
     ip += 2;
     return Continue.yes;
-});
+};
 
-alias outputInstruction = (long[] memory, ref size_t ip, const size_t rb, ref output) => ({
+alias outputInstruction = (long[] memory, ref size_t ip, const size_t rb, ref output) => () {
     output.put(param(memory, ip, rb, 0));
     ip += 2;
     return Continue.yes;
-});
+};
 
-alias jumpIfTrueInstruction = (long[] memory, ref size_t ip, const size_t rb) => ({
+alias jumpIfTrueInstruction = (long[] memory, ref size_t ip, const size_t rb) => () {
     if (param(memory, ip, rb, 0) != 0)
         ip = param(memory, ip, rb, 1).to!size_t;
     else
         ip += 3;
     return Continue.yes;
-});
+};
 
-alias jumpIfFalseInstruction = (long[] memory, ref size_t ip, const size_t rb) => ({
+alias jumpIfFalseInstruction = (long[] memory, ref size_t ip, const size_t rb) => () {
     if (param(memory, ip, rb, 0) == 0)
         ip = param(memory, ip, rb, 1).to!size_t;
     else
         ip += 3;
     return Continue.yes;
-});
+};
 
-alias lessThanInstruction = (long[] memory, ref size_t ip, const size_t rb) => ({
+alias lessThanInstruction = (long[] memory, ref size_t ip, const size_t rb) => () {
     param(memory, ip, rb, 2) = param(memory, ip, rb, 0) < param(memory, ip, rb, 1) ? 1 : 0;
     ip += 4;
     return Continue.yes;
-});
+};
 
-alias equalsInstruction = (long[] memory, ref size_t ip, const size_t rb) => ({
+alias equalsInstruction = (long[] memory, ref size_t ip, const size_t rb) => () {
     param(memory, ip, rb, 2) = param(memory, ip, rb, 0) == param(memory, ip, rb, 1) ? 1 : 0;
     ip += 4;
     return Continue.yes;
-});
+};
 
-alias adjustRelativeBaseInstruction = (long[] memory, ref size_t ip, ref size_t rb) => ({
+alias adjustRelativeBaseInstruction = (long[] memory, ref size_t ip, ref size_t rb) => () {
     rb += param(memory, ip, rb, 0);
     ip += 2;
     return Continue.yes;
-});
+};
 
 alias haltInstruction = () => delegate() => Continue.no;
 
