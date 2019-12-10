@@ -12,7 +12,9 @@ alias asteroid = tuple!("x", "y");
 
 auto maximumDetection(string input)
 {
-    auto asteroids = input.splitter("\n").map!(row => row.enumerate.filter!(it => it.value == '#'))
+    auto asteroids = input.splitter("\n").array
+        .retro
+        .map!(row => row.enumerate.filter!(it => it.value == '#'))
         .enumerate
         .map!(row => row.value.map!(it => asteroid(it.index.to!long, row.index.to!long)))
         .joiner
