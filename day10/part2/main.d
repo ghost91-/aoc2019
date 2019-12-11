@@ -71,8 +71,7 @@ unittest
 
 auto maximumDetection(string input)
 {
-    auto asteroids = input.splitter("\n").array
-        .map!(row => row.enumerate.filter!(it => it.value == '#'))
+    auto asteroids = input.splitter("\n").map!(row => row.enumerate.filter!(it => it.value == '#'))
         .enumerate
         .map!(row => row.value.map!(it => Asteroid(it.index.to!long, row.index.to!long)))
         .joiner

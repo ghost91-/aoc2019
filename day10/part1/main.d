@@ -16,7 +16,7 @@ struct Angle
     long x;
     long y;
 
-    long opCmp(Angle other) const
+    long opCmp(const Angle other) const
     {
         auto selfInLeftHalf = this.x < 0;
         auto otherInLeftHalf = other.x < 0;
@@ -27,16 +27,15 @@ struct Angle
         return other.cross(this).sgn;
     }
 
-    auto cross(Angle other) const
+    auto cross(const Angle other) const
     {
-        return x * other.y - y * other.x;
+        return this.x * other.y - this.y * other.x;
     }
 }
 
 auto maximumDetection(string input)
 {
-    auto asteroids = input.splitter("\n").array
-        .map!(row => row.enumerate.filter!(it => it.value == '#'))
+    auto asteroids = input.splitter("\n").map!(row => row.enumerate.filter!(it => it.value == '#'))
         .enumerate
         .map!(row => row.value.map!(it => Asteroid(it.index.to!long, row.index.to!long)))
         .joiner
