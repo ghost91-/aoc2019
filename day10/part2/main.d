@@ -15,7 +15,7 @@ struct Angle
     long x;
     long y;
 
-    long opCmp(Angle other) const
+    long opCmp(const Angle other) const
     {
         auto selfInLeftHalf = this.x < 0;
         auto otherInLeftHalf = other.x < 0;
@@ -26,9 +26,9 @@ struct Angle
         return other.cross(this).sgn;
     }
 
-    auto cross(Angle other) const
+    auto cross(const Angle other) const
     {
-        return x * other.y - y * other.x;
+        return this.x * other.y - this.y * other.x;
     }
 }
 
