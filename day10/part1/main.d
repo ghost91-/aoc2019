@@ -37,112 +37,112 @@ auto maximumDetection(string input)
         .maxElement!"a.lines.length";
 }
 
-// unittest
-// {
-//     // given
-//     immutable input = `.#..#
-// .....
-// #####
-// ....#
-// ...##`;
+unittest
+{
+    // given
+    immutable input = `.#..#
+.....
+#####
+....#
+...##`;
 
-//     // when
-//     immutable result = input.maximumDetection;
+    // when
+    immutable result = input.maximumDetection.lines.length;
 
-//     // then
-//     assert(result == 8);
-// }
+    // then
+    assert(result == 8);
+}
 
-// unittest
-// {
-//     // given
-//     immutable input = `......#.#.
-// #..#.#....
-// ..#######.
-// .#.#.###..
-// .#..#.....
-// ..#....#.#
-// #..#....#.
-// .##.#..###
-// ##...#..#.
-// .#....####`;
+unittest
+{
+    // given
+    immutable input = `......#.#.
+#..#.#....
+..#######.
+.#.#.###..
+.#..#.....
+..#....#.#
+#..#....#.
+.##.#..###
+##...#..#.
+.#....####`;
 
-//     // when
-//     immutable result = input.maximumDetection;
+    // when
+    immutable result = input.maximumDetection.lines.length;
 
-//     // then
-//     assert(result == 33);
-// }
+    // then
+    assert(result == 33);
+}
 
-// unittest
-// {
-//     // given
-//     immutable input = `#.#...#.#.
-// .###....#.
-// .#....#...
-// ##.#.#.#.#
-// ....#.#.#.
-// .##..###.#
-// ..#...##..
-// ..##....##
-// ......#...
-// .####.###.`;
+unittest
+{
+    // given
+    immutable input = `#.#...#.#.
+.###....#.
+.#....#...
+##.#.#.#.#
+....#.#.#.
+.##..###.#
+..#...##..
+..##....##
+......#...
+.####.###.`;
 
-//     // when
-//     immutable result = input.maximumDetection;
+    // when
+    immutable result = input.maximumDetection.lines.length;
 
-//     // then
-//     assert(result == 35);
-// }
+    // then
+    assert(result == 35);
+}
 
-// unittest
-// {
-//     // given
-//     immutable input = `.#..#..###
-// ####.###.#
-// ....###.#.
-// ..###.##.#
-// ##.##.#.#.
-// ....###..#
-// ..#.#..#.#
-// #..#.#.###
-// .##...##.#
-// .....#.#..`;
+unittest
+{
+    // given
+    immutable input = `.#..#..###
+####.###.#
+....###.#.
+..###.##.#
+##.##.#.#.
+....###..#
+..#.#..#.#
+#..#.#.###
+.##...##.#
+.....#.#..`;
 
-//     // when
-//     immutable result = input.maximumDetection;
+    // when
+    immutable result = input.maximumDetection.lines.length;
 
-//     // then
-//     assert(result == 41);
-// }
+    // then
+    assert(result == 41);
+}
 
-// unittest
-// {
-//     // given
-//     immutable input = `.#..##.###...#######
-// ##.############..##.
-// .#.######.########.#
-// .###.#######.####.#.
-// #####.##.#.##.###.##
-// ..#####..#.#########
-// ####################
-// #.####....###.#.#.##
-// ##.#################
-// #####.##.###..####..
-// ..######..##.#######
-// ####.##.####...##..#
-// .#####..#.######.###
-// ##...#.##########...
-// #.##########.#######
-// .####.#.###.###.#.##
-// ....##.##.###..#####
-// .#.#.###########.###
-// #.#.#.#####.####.###
-// ###.##.####.##.#..##`;
+unittest
+{
+    // given
+    immutable input = `.#..##.###...#######
+##.############..##.
+.#.######.########.#
+.###.#######.####.#.
+#####.##.#.##.###.##
+..#####..#.#########
+####################
+#.####....###.#.#.##
+##.#################
+#####.##.###..####..
+..######..##.#######
+####.##.####...##..#
+.#####..#.######.###
+##...#.##########...
+#.##########.#######
+.####.#.###.###.#.##
+....##.##.###..#####
+.#.#.###########.###
+#.#.#.#####.####.###
+###.##.####.##.#..##`;
 
-//     // when
-//     immutable result = input.maximumDetection;
+    // when
+    immutable result = input.maximumDetection.lines.length;
 
-//     // then
-//     assert(result == 210);
-// }
+    // then
+    assert(result == 210);
+}
