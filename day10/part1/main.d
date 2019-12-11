@@ -4,7 +4,7 @@ import std;
 
 void main()
 {
-    auto result = readText("input").maximumDetection;
+    const result = readText("input").maximumDetection;
     result.asteroid.writeln;
     result.lines.length.writeln;
 }
