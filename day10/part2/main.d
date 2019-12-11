@@ -4,31 +4,69 @@ import std;
 
 void main()
 {
-    readText("input").maximumDetection.lines.drop(199)
-        .map!(it => it[0].asteroid.x * 100 + it[0].asteroid.y).front.writeln;
+    auto _200th = readText("input").nthDestroyed(200);
+    writeln(_200th.asteroid.x * 100 + _200th.asteroid.y);
 }
 
 alias Asteroid = Tuple!(long, "x", long, "y");
 
-auto mod2PI(double n)
+struct Angle
 {
-    if (0 <= n && n < 2 * PI)
-        return n;
-    else if (n < 0)
-        return mod2PI(n + 2 * PI);
-    else
-        return mod2PI(n - 2 * PI);
+    long x;
+    long y;
 
+    long opCmp(Angle other) const
+    {
+        auto selfInLeftHalf = this.x < 0;
+        auto otherInLeftHalf = other.x < 0;
+        if (selfInLeftHalf != otherInLeftHalf)
+            return selfInLeftHalf - otherInLeftHalf;
+        if (this.x == 0 && other.x == 0)
+            return this.y.sgn - other.y.sgn;
+        return other.cross(this).sgn;
+    }
+
+    auto cross(Angle other) const
+    {
+        return x * other.y - y * other.x;
+    }
 }
 
-auto angleBetween(double x1, double y1, double x2, double y2)
+auto nthDestroyed(string input, size_t n)
+in(n > 0)
 {
-    return atan2((x2 - x1).to!double, -(y2 - y1)).mod2PI;
+    return input.maximumDetection.lines.transposed.joiner.drop(n - 1).front;
 }
 
-auto distanceBetween(double x1, double y1, double x2, double y2)
+unittest
 {
-    return sqrt((x2 - x1) ^^ 2 + (y2 - y1) ^^ 2);
+    // given
+    immutable input = `.#..##.###...#######
+##.############..##.
+.#.######.########.#
+.###.#######.####.#.
+#####.##.#.##.###.##
+..#####..#.#########
+####################
+#.####....###.#.#.##
+##.#################
+#####.##.###..####..
+..######..##.#######
+####.##.####...##..#
+.#####..#.######.###
+##...#.##########...
+#.##########.#######
+.####.#.###.###.#.##
+....##.##.###..#####
+.#.#.###########.###
+#.#.#.#####.####.###
+###.##.####.##.#..##`;
+
+    // when
+    immutable result = input.nthDestroyed(200);
+
+    // then
+    assert(result.asteroid == Asteroid(8, 2));
 }
 
 auto maximumDetection(string input)
@@ -40,17 +78,19 @@ auto maximumDetection(string input)
         .joiner
         .array;
 
-    return asteroids.map!((a) => tuple!("asteroid", "lines")(a, asteroids.filter!(b => b != a)
+    return asteroids.map!((station) => tuple!("asteroid", "lines")(station,
+            asteroids.filter!(other => other != station)
             .map!((other) {
-                auto angle = angleBetween(a.x, a.y, other.x, other.y);
-                auto distance = distanceBetween(a.x, a.y, other.x, other.y);
-                return tuple!("angle", "distance", "asteroid")(angle, distance, other);
+                auto diffX = other.x - station.x;
+                auto diffY = other.y - station.y;
+                auto denom = gcd(diffX.abs, diffY.abs);
+                auto angle = Angle(diffX / denom, diffY / denom);
+                return tuple!("angle", "denom", "asteroid")(angle, denom, other);
             })
             .array
             .sort!"a.angle < b.angle"
-            .array
             .chunkBy!"a.angle == b.angle"
-            .map!(it => it.array)
+            .map!(a => a.array.sort!"a.denom < b.denom")
             .array))
         .maxElement!"a.lines.length";
 }

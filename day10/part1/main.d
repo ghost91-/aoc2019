@@ -11,6 +11,28 @@ void main()
 
 alias Asteroid = Tuple!(long, "x", long, "y");
 
+struct Angle
+{
+    long x;
+    long y;
+
+    long opCmp(Angle other) const
+    {
+        auto selfInLeftHalf = this.x < 0;
+        auto otherInLeftHalf = other.x < 0;
+        if (selfInLeftHalf != otherInLeftHalf)
+            return selfInLeftHalf - otherInLeftHalf;
+        if (this.x == 0 && other.x == 0)
+            return this.y.sgn - other.y.sgn;
+        return other.cross(this).sgn;
+    }
+
+    auto cross(Angle other) const
+    {
+        return x * other.y - y * other.x;
+    }
+}
+
 auto maximumDetection(string input)
 {
     auto asteroids = input.splitter("\n").array
@@ -20,20 +42,20 @@ auto maximumDetection(string input)
         .joiner
         .array;
 
-    return asteroids.map!((a) => tuple!("asteroid", "lines")(a, asteroids.filter!(b => b != a)
+    return asteroids.map!((station) => tuple!("asteroid", "lines")(station,
+            asteroids.filter!(other => other != station)
             .map!((other) {
-                auto diffX = other.x - a.x;
-                auto diffY = other.y - a.y;
-                auto angle = atan2(diffY.to!double, diffX.to!double);
-                auto distance = sqrt((diffX ^^ 2 + diffY ^^ 2).to!double);
-                return tuple!("angle", "distance")(angle, distance);
+                auto diffX = other.x - station.x;
+                auto diffY = other.y - station.y;
+                auto denom = gcd(diffX.abs, diffY.abs);
+                auto angle = Angle(diffX / denom, diffY / denom);
+                return tuple!("angle", "denom", "asteroid")(angle, denom, other);
             })
             .array
             .sort!"a.angle < b.angle"
-            .array
             .chunkBy!"a.angle == b.angle"
+            .map!(a => a.array.sort!"a.denom < b.denom")
             .array))
-        .array
         .maxElement!"a.lines.length";
 }
 
