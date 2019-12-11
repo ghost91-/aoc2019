@@ -21,7 +21,7 @@ void main()
     auto maxY = colors.keys.map!(it => it[1]).maxElement;
 
     iota(maxY, minY - 1, -1).map!(i => iota(minX, maxX + 1)
-            .map!(j => colors.getOrElse([j, i], 0) == 0 ? ' ' : '#'))
+            .map!(j => colors.getOrElse([j, i], 0) == 0 ? ' ' : '▮'))
         .each!writeln;
 }
 
