@@ -4,145 +4,145 @@ import std;
 
 void main()
 {
-    readText("input").maximumDetection.writeln;
+    auto result = readText("input").maximumDetection;
+    result.asteroid.writeln;
+    result.lines.length.writeln;
 }
 
 alias Asteroid = Tuple!(long, "x", long, "y");
-alias asteroid = tuple!("x", "y");
 
 auto maximumDetection(string input)
 {
     auto asteroids = input.splitter("\n").array
-        .retro
         .map!(row => row.enumerate.filter!(it => it.value == '#'))
         .enumerate
-        .map!(row => row.value.map!(it => asteroid(it.index.to!long, row.index.to!long)))
+        .map!(row => row.value.map!(it => Asteroid(it.index.to!long, row.index.to!long)))
         .joiner
         .array;
 
-    return asteroids.map!((a) {
-        return asteroids.filter!(b => b != a)
-            .fold!((canSee, other) {
-                immutable diffX = other.x - a.x;
-                immutable diffY = other.y - a.y;
-                immutable denom = gcd(abs(diffX), abs(diffY));
-                immutable unitX = diffX / denom;
-                immutable unitY = diffY / denom;
-                auto firstInLineOfSight = iota(1, denom + 1).map!(i => asteroid(a.x + i * unitX,
-                a.y + i * unitY))
-                .find!(it => asteroids.canFind(it))
-                .front;
-                return firstInLineOfSight == other ? canSee + 1 : canSee;
-            })(0);
-    }).maxElement;
+    return asteroids.map!((a) => tuple!("asteroid", "lines")(a, asteroids.filter!(b => b != a)
+            .map!((other) {
+                auto diffX = other.x - a.x;
+                auto diffY = other.y - a.y;
+                auto angle = atan2(diffY.to!double, diffX.to!double);
+                auto distance = sqrt((diffX ^^ 2 + diffY ^^ 2).to!double);
+                return tuple!("angle", "distance")(angle, distance);
+            })
+            .array
+            .sort!"a.angle < b.angle"
+            .array
+            .chunkBy!"a.angle == b.angle"
+            .array))
+        .array
+        .maxElement!"a.lines.length";
 }
 
-unittest
-{
-    // given
-    immutable input = `.#..#
-.....
-#####
-....#
-...##`;
+// unittest
+// {
+//     // given
+//     immutable input = `.#..#
+// .....
+// #####
+// ....#
+// ...##`;
 
-    // when
-    immutable result = input.maximumDetection;
+//     // when
+//     immutable result = input.maximumDetection;
 
-    // then
-    assert(result == 8);
-}
+//     // then
+//     assert(result == 8);
+// }
 
-unittest
-{
-    // given
-    immutable input = `......#.#.
-#..#.#....
-..#######.
-.#.#.###..
-.#..#.....
-..#....#.#
-#..#....#.
-.##.#..###
-##...#..#.
-.#....####`;
+// unittest
+// {
+//     // given
+//     immutable input = `......#.#.
+// #..#.#....
+// ..#######.
+// .#.#.###..
+// .#..#.....
+// ..#....#.#
+// #..#....#.
+// .##.#..###
+// ##...#..#.
+// .#....####`;
 
-    // when
-    immutable result = input.maximumDetection;
+//     // when
+//     immutable result = input.maximumDetection;
 
-    // then
-    assert(result == 33);
-}
+//     // then
+//     assert(result == 33);
+// }
 
-unittest
-{
-    // given
-    immutable input = `#.#...#.#.
-.###....#.
-.#....#...
-##.#.#.#.#
-....#.#.#.
-.##..###.#
-..#...##..
-..##....##
-......#...
-.####.###.`;
+// unittest
+// {
+//     // given
+//     immutable input = `#.#...#.#.
+// .###....#.
+// .#....#...
+// ##.#.#.#.#
+// ....#.#.#.
+// .##..###.#
+// ..#...##..
+// ..##....##
+// ......#...
+// .####.###.`;
 
-    // when
-    immutable result = input.maximumDetection;
+//     // when
+//     immutable result = input.maximumDetection;
 
-    // then
-    assert(result == 35);
-}
+//     // then
+//     assert(result == 35);
+// }
 
-unittest
-{
-    // given
-    immutable input = `.#..#..###
-####.###.#
-....###.#.
-..###.##.#
-##.##.#.#.
-....###..#
-..#.#..#.#
-#..#.#.###
-.##...##.#
-.....#.#..`;
+// unittest
+// {
+//     // given
+//     immutable input = `.#..#..###
+// ####.###.#
+// ....###.#.
+// ..###.##.#
+// ##.##.#.#.
+// ....###..#
+// ..#.#..#.#
+// #..#.#.###
+// .##...##.#
+// .....#.#..`;
 
-    // when
-    immutable result = input.maximumDetection;
+//     // when
+//     immutable result = input.maximumDetection;
 
-    // then
-    assert(result == 41);
-}
+//     // then
+//     assert(result == 41);
+// }
 
-unittest
-{
-    // given
-    immutable input = `.#..##.###...#######
-##.############..##.
-.#.######.########.#
-.###.#######.####.#.
-#####.##.#.##.###.##
-..#####..#.#########
-####################
-#.####....###.#.#.##
-##.#################
-#####.##.###..####..
-..######..##.#######
-####.##.####...##..#
-.#####..#.######.###
-##...#.##########...
-#.##########.#######
-.####.#.###.###.#.##
-....##.##.###..#####
-.#.#.###########.###
-#.#.#.#####.####.###
-###.##.####.##.#..##`;
+// unittest
+// {
+//     // given
+//     immutable input = `.#..##.###...#######
+// ##.############..##.
+// .#.######.########.#
+// .###.#######.####.#.
+// #####.##.#.##.###.##
+// ..#####..#.#########
+// ####################
+// #.####....###.#.#.##
+// ##.#################
+// #####.##.###..####..
+// ..######..##.#######
+// ####.##.####...##..#
+// .#####..#.######.###
+// ##...#.##########...
+// #.##########.#######
+// .####.#.###.###.#.##
+// ....##.##.###..#####
+// .#.#.###########.###
+// #.#.#.#####.####.###
+// ###.##.####.##.#..##`;
 
-    // when
-    immutable result = input.maximumDetection;
+//     // when
+//     immutable result = input.maximumDetection;
 
-    // then
-    assert(result == 210);
-}
+//     // then
+//     assert(result == 210);
+// }
