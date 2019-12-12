@@ -28,6 +28,30 @@ auto nextStep(const Moon[] moons)
     return moons.updateVel.updatePos;
 }
 
+unittest
+{
+    // given
+    auto inititalState = [
+        Moon(Vec3(-1,   0,  2), Vec3(0, 0, 0)),
+        Moon(Vec3( 2, -10, -7), Vec3(0, 0, 0)),
+        Moon(Vec3( 4,  -8,  8), Vec3(0, 0, 0)),
+        Moon(Vec3( 3,   5, -1), Vec3(0, 0, 0)),
+    ];
+
+    // when
+    auto result = inititalState.nextStep;
+
+    // then
+    auto expected = [
+        Moon(Vec3(2, -1, 1), Vec3(3, -1, -1)),
+        Moon(Vec3(3, -7, -4), Vec3(1, 3, 3)),
+        Moon(Vec3(1, -7, 5), Vec3(-3, 1, -3)),
+        Moon(Vec3(2, 2, 0), Vec3(-1, -3, 1)),
+    ];
+    
+    assert(result == expected);
+}
+
 auto updateVel(const Moon[] moons)
 {
     return moons.map!(it => moons.fold!((a, b) => Moon(a.pos,
