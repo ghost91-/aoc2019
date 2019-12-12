@@ -8,9 +8,10 @@ alias PosVel = Tuple!(int, "pos", int, "vel");
 
 void main()
 {
-    auto initialPos = slurp!(int, int, int)("input", "<x=%s, y=%s, z=%s>").map!(to!Vec3);
-    auto initialVel = initialPos.map!(it => Vec3(0, 0, 0)).array;
-    const initialState = initialPos.zip(initialVel).map!(to!Moon).array;
+    const initialState = slurp!(int, int, int)("input", "<x=%s, y=%s, z=%s>").map!(to!Vec3)
+        .map!(it => Moon(it, Vec3(0, 0, 0)))
+        .array;
+
     initialState.cycleLength.writeln;
 }
 
@@ -21,9 +22,9 @@ auto lcm(T)(T a, T b)
     return abs(a * b) / gcd(a, b);
 }
 
-ulong cycleLength(const Moon[] moons)
+ulong cycleLength(const Moon[] initialState)
 {
-    return moons.map!(it => [
+    return initialState.map!(it => [
             PosVel(it.pos.x, it.vel.x), PosVel(it.pos.y, it.vel.y),
             PosVel(it.pos.z, it.vel.z)
             ])
@@ -57,11 +58,9 @@ auto updatePos(const PosVel[] posvels)
 unittest
 {
     // given
-    immutable initialPos = [
+    const initialState = [
         Vec3(-1, 0, 2), Vec3(2, -10, -7), Vec3(4, -8, 8), Vec3(3, 5, -1),
-    ];
-    immutable initialVel = initialPos.map!(it => Vec3(0, 0, 0)).array;
-    immutable initialState = initialPos.zip(initialVel).map!(to!Moon).array;
+    ].map!(it => Moon(it, Vec3(0, 0, 0))).array;
 
     // when
     immutable result = initialState.cycleLength;
@@ -72,12 +71,11 @@ unittest
 
 unittest
 {
+
     // given
-    immutable initialPos = [
+    const initialState = [
         Vec3(-8, -10, 0), Vec3(5, 5, 10), Vec3(2, -7, 3), Vec3(9, -8, -3)
-    ];
-    immutable initialVel = initialPos.map!(it => Vec3(0, 0, 0)).array;
-    immutable initialState = initialPos.zip(initialVel).map!(to!Moon).array;
+    ].map!(it => Moon(it, Vec3(0, 0, 0))).array;
 
     // when
     immutable result = initialState.cycleLength;

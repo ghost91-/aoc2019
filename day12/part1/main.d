@@ -7,9 +7,11 @@ alias Moon = Tuple!(Vec3, "pos", Vec3, "vel");
 
 void main()
 {
-    auto initialPos = slurp!(int, int, int)("input", "<x=%s, y=%s, z=%s>").map!(to!Vec3);
-    auto initialVel = initialPos.map!(it => Vec3(0, 0, 0)).array;
-    initialPos.zip(initialVel).map!(to!Moon).array.energyAfterNSteps(1000).writeln;
+    const initialState = slurp!(int, int, int)("input", "<x=%s, y=%s, z=%s>").map!(to!Vec3)
+        .map!(it => Moon(it, Vec3(0, 0, 0)))
+        .array;
+
+    initialState.energyAfterNSteps(1000).writeln;
 }
 
 auto energyAfterNSteps(const Moon[] moons, size_t n)
@@ -31,24 +33,23 @@ auto nextStep(const Moon[] moons)
 unittest
 {
     // given
-    auto inititalState = [
-        Moon(Vec3(-1,   0,  2), Vec3(0, 0, 0)),
-        Moon(Vec3( 2, -10, -7), Vec3(0, 0, 0)),
-        Moon(Vec3( 4,  -8,  8), Vec3(0, 0, 0)),
-        Moon(Vec3( 3,   5, -1), Vec3(0, 0, 0)),
+    immutable inititalState = [
+        Moon(Vec3(-1, 0, 2), Vec3(0, 0, 0)),
+        Moon(Vec3(2, -10, -7), Vec3(0, 0, 0)),
+        Moon(Vec3(4, -8, 8), Vec3(0, 0, 0)), Moon(Vec3(3, 5, -1), Vec3(0, 0, 0)),
     ];
 
     // when
-    auto result = inititalState.nextStep;
+    immutable result = inititalState.nextStep;
 
     // then
-    auto expected = [
+    immutable expected = [
         Moon(Vec3(2, -1, 1), Vec3(3, -1, -1)),
         Moon(Vec3(3, -7, -4), Vec3(1, 3, 3)),
         Moon(Vec3(1, -7, 5), Vec3(-3, 1, -3)),
         Moon(Vec3(2, 2, 0), Vec3(-1, -3, 1)),
     ];
-    
+
     assert(result == expected);
 }
 
@@ -68,14 +69,12 @@ auto updatePos(const Moon[] moons)
 unittest
 {
     // given
-    immutable initialPos = [
+    const initialState = [
         Vec3(-8, -10, 0), Vec3(5, 5, 10), Vec3(2, -7, 3), Vec3(9, -8, -3)
-    ];
-    immutable initialVel = initialPos.map!(it => Vec3(0, 0, 0)).array;
-    auto moons = initialPos.zip(initialVel).map!(to!Moon).array;
+    ].map!(it => Moon(it, Vec3(0, 0, 0))).array;
 
     // when
-    immutable result = moons.energyAfterNSteps(100);
+    immutable result = initialState.energyAfterNSteps(100);
 
     // then
     assert(result == 1940);
