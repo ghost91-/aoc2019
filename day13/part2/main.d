@@ -51,7 +51,7 @@ auto play(Input, Output)(Input input, Output output)
 
             immutable ball = tiles.byPair.find!(it => it.value == 4).front;
             immutable slider = tiles.byPair.find!(it => it.value == 3).front;
-            output.put(ball.key.x - slider.key.x);
+            output.put((ball.key.x - slider.key.x).sgn);
             Fiber.yield();
         }
         output.put(score);
