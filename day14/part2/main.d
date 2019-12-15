@@ -30,9 +30,7 @@ void main()
 auto calculateMaximumAmount(Reaction[string] reactions, string material, ulong ore)
 {
     return iota(1, ulong.max).map!((it) {
-        ulong[string] storedMaterial;
-        storedMaterial["ORE"] = ore;
-        return canProduceWithResources(reactions, it, material, storedMaterial);
+        return canProduceWithResources(reactions, it, material, ["ORE": ore]);
     })
         .assumeSorted!"a > b"
         .lowerBound(false).length;
@@ -87,8 +85,6 @@ unittest
     // when
     immutable result = reactions.calculateMaximumAmount("FUEL", ore);
 
-    ulong[string] storedMaterial;
-    storedMaterial["ORE"] = ore;
     // then
     assert(result == 82_892_753);
 }
@@ -113,8 +109,6 @@ unittest
     // when
     immutable result = reactions.calculateMaximumAmount("FUEL", ore);
 
-    ulong[string] storedMaterial;
-    storedMaterial["ORE"] = ore;
     // then
     assert(result == 5_586_022);
 }
@@ -144,8 +138,6 @@ unittest
     // when
     immutable result = reactions.calculateMaximumAmount("FUEL", ore);
 
-    ulong[string] storedMaterial;
-    storedMaterial["ORE"] = ore;
     // then
     assert(result == 460_664);
 }
