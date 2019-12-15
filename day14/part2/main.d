@@ -29,9 +29,8 @@ void main()
 
 auto calculateMaximumAmount(Reaction[string] reactions, string material, ulong ore)
 {
-    return iota(1, ulong.max).map!((it) {
-        return canProduceWithResources(reactions, it, material, ["ORE": ore]);
-    })
+    return iota(1, ulong.max).map!(it => canProduceWithResources(reactions, it,
+            material, ["ORE": ore]))
         .assumeSorted!"a > b"
         .lowerBound(false).length;
 }
