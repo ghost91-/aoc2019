@@ -29,13 +29,13 @@ void main()
 
 auto calculateMaximumAmount(Reaction[string] reactions, string material, ulong ore)
 {
-    return iota(ulong.max).map!((it) {
+    return iota(1, ulong.max).map!((it) {
         ulong[string] storedMaterial;
         storedMaterial["ORE"] = ore;
         return canProduceWithResources(reactions, it, material, storedMaterial);
     })
         .assumeSorted!"a > b"
-        .lowerBound(false).length - 1;
+        .lowerBound(false).length;
 }
 
 alias and = (a, b) => a && b;
